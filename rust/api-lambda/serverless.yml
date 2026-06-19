@@ -1,0 +1,26 @@
+service: api-lambda
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: provided.al2023
+  architecture: arm64
+  region: ${opt:region, 'ap-southeast-2'}
+  stage: ${opt:stage, 'dev'}
+  environment:
+    RUST_LOG: info
+    OTEL_SERVICE_NAME: ${self:service}-${sls:stage}
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${env:OTEL_EXPORTER_OTLP_ENDPOINT, ''}
+
+functions:
+  api:
+    handler: bootstrap
+    package:
+      artifact: target/lambda/bootstrap/bootstrap.zip
+    events:
+      - httpApi:
+          path: /
+          method: ANY
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
