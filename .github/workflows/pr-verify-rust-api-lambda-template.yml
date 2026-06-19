@@ -1,0 +1,49 @@
+name: Verify Rust AWS Lambda API Template
+
+on:
+  pull_request:
+    branches: [main, master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        enable_oidc: [false, true]
+    name: verify (oidc=${{ matrix.enable_oidc }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Install cargo-generate
+        run: cargo install cargo-generate
+
+      - name: Generate project
+        run: >
+          cargo generate --path .
+          --name test-project
+          --define "enable_oidc=${{ matrix.enable_oidc }}"
+          --define "oidc_issuer_url=https://example.com"
+          --define "oidc_audience=test-client-id"
+          --destination /tmp
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: /tmp/test-project
+
+      - name: Check
+        run: cargo check
+        working-directory: /tmp/test-project
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+        working-directory: /tmp/test-project
+
+      - name: Test
+        run: cargo test
+        working-directory: /tmp/test-project
