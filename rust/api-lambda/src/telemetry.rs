@@ -25,7 +25,7 @@ impl Drop for TelemetryGuard {
     }
 }
 
-pub fn init() -> TelemetryGuard {
+pub fn init(log_level: &str) -> TelemetryGuard {
     let service_name =
         std::env::var("OTEL_SERVICE_NAME").unwrap_or_else(|_| "{{project-name}}".into());
 
@@ -39,7 +39,8 @@ pub fn init() -> TelemetryGuard {
 
     let tracer = tracer_provider.tracer("{{project-name}}");
 
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level));
 
     tracing_subscriber::registry()
         .with(env_filter)
