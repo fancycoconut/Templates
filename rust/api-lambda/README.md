@@ -49,16 +49,18 @@ Push to `main` to trigger the deploy workflow.
 ## Project Structure
 
 ```
+config.toml              # Application configuration (log level, etc.)
 src/
-├── main.rs          # Lambda entrypoint — initialises telemetry, runs the router
-├── lib.rs           # Library root — re-exports create_router for tests
-├── router.rs        # Axum Router definition with request logging middleware
-├── telemetry.rs     # OpenTelemetry tracer + meter provider setup (OTLP)
+├── main.rs              # Lambda entrypoint — loads config, initialises telemetry, runs the router
+├── lib.rs               # Library root — re-exports create_router for tests
+├── router.rs            # Axum Router definition with request logging middleware
+├── settings.rs          # Configuration loading (config.toml + env var overrides)
+├── telemetry.rs         # OpenTelemetry tracer + meter provider setup (OTLP)
 └── routes/
     ├── mod.rs
-    └── health.rs    # GET /health — example handler with tracing + metrics
+    └── health.rs        # GET /health — example handler with tracing + metrics
 tests/
-└── api_test.rs      # Integration tests using tower::ServiceExt::oneshot
+└── api_test.rs          # Integration tests using tower::ServiceExt::oneshot
 ```
 
 ## Local Development
@@ -108,16 +110,27 @@ Request/response logging is handled by `tower-http`'s `TraceLayer`, which logs e
 
 #### Log level control
 
-Set the `RUST_LOG` environment variable on your Lambda function to control verbosity:
+The log level is configured in `config.toml`:
 
-```yaml
-# template.yaml
-Environment:
-  Variables:
-    RUST_LOG: info                                   # default — application logs only
-    RUST_LOG: debug                                  # includes request/response logs from TraceLayer
-    RUST_LOG: my_crate=debug,tower_http=trace        # fine-grained per-crate control
+```toml
+[logging]
+level = "info"
 ```
+
+You can override this at runtime using environment variables with the `APP__` prefix (double underscore as section separator):
+
+```bash
+APP__LOGGING__LEVEL=debug    # overrides config.toml
+```
+
+Or bypass the config file entirely with the standard `RUST_LOG` env var, which takes highest precedence:
+
+```bash
+RUST_LOG=debug                                  # includes request/response logs from TraceLayer
+RUST_LOG=my_crate=debug,tower_http=trace        # fine-grained per-crate control
+```
+
+Precedence order: `RUST_LOG` > `APP__*` env vars > `config.toml`.
 
 #### Adding logging to a handler
 
@@ -144,7 +157,7 @@ Configuration uses standard OpenTelemetry environment variables:
 | `OTEL_SERVICE_NAME` | Service name in traces/metrics | `<project-name>` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint (gRPC) | — |
 | `OTEL_RESOURCE_ATTRIBUTES` | Additional resource attributes | — |
-| `RUST_LOG` | Log level filter | `info` |
+| `RUST_LOG` | Log level filter (overrides `config.toml`) | value from `config.toml` |
 
 Works with any OTEL-compatible backend: Honeycomb, Grafana Tempo, Jaeger, AWS X-Ray (via ADOT collector), Datadog, etc.
 
