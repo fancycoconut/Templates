@@ -16,6 +16,23 @@ Globals:
         OTEL_EXPORTER_OTLP_ENDPOINT: ""
 
 Resources:
+{% if enable_oidc %}
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        DefaultAuthorizer: OidcAuthorizer
+        Authorizers:
+          OidcAuthorizer:
+            AuthorizationScopes:
+              - openid
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: "{{oidc_issuer_url}}"
+              audience:
+                - "{{oidc_audience}}"
+
+{% endif %}
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -25,15 +42,25 @@ Resources:
         RootPath:
           Type: HttpApi
           Properties:
+{% if enable_oidc %}
+            ApiId: !Ref HttpApi
+{% endif %}
             Path: /
             Method: ANY
         ProxyPath:
           Type: HttpApi
           Properties:
+{% if enable_oidc %}
+            ApiId: !Ref HttpApi
+{% endif %}
             Path: /{proxy+}
             Method: ANY
 
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
+{% if enable_oidc %}
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+{% else %}
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+{% endif %}

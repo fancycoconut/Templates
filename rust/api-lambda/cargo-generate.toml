@@ -1,2 +1,19 @@
 [template]
 cargo_generate_version = ">=0.10.0"
+
+[placeholders.enable_oidc]
+type = "bool"
+prompt = "Enable OIDC authentication (API Gateway JWT authorizer)?"
+default = false
+
+[conditional.'enable_oidc']
+
+[placeholders.oidc_issuer_url]
+type = "string"
+prompt = "OIDC issuer URL (e.g. https://login.microsoftonline.com/{tenant}/v2.0, https://your-domain.auth0.com/)"
+default = "https://example.com"
+
+[placeholders.oidc_audience]
+type = "string"
+prompt = "OIDC audience (typically your app's client ID)"
+default = "your-client-id"
