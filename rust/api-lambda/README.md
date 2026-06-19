@@ -43,9 +43,8 @@ Push to `main` to trigger the deploy workflow.
 - [Rust](https://rustup.rs/)
 - [cargo-lambda](https://www.cargo-lambda.info/) — `pip3 install cargo-lambda` or `brew install cargo-lambda`
 - [AWS CLI](https://aws.amazon.com/cli/) — configured with credentials
-- [Serverless Framework v3](https://www.serverless.com/) — `npm install -g serverless`
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 - [Docker](https://www.docker.com/) — only required for SAM CLI local testing
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) — optional, for integration testing
 
 ## Project Structure
 
@@ -130,11 +129,11 @@ The `#[instrument]` macro creates a span that is automatically exported to your 
 # Build for Lambda
 cargo lambda build --release --arm64
 
-# Deploy to dev
-serverless deploy
+# First deploy (interactive — sets up samconfig.toml)
+sam deploy --guided
 
-# Deploy to prod
-serverless deploy --stage prod
+# Subsequent deploys
+sam deploy
 ```
 
 Required GitHub Actions secrets for CI/CD:
