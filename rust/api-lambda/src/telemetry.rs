@@ -27,7 +27,7 @@ impl Drop for TelemetryGuard {
 
 pub fn init() -> TelemetryGuard {
     let service_name =
-        std::env::var("OTEL_SERVICE_NAME").unwrap_or_else(|_| "api-lambda".into());
+        std::env::var("OTEL_SERVICE_NAME").unwrap_or_else(|_| "{{project-name}}".into());
 
     let resource = Resource::new(vec![KeyValue::new("service.name", service_name)]);
 
@@ -37,7 +37,7 @@ pub fn init() -> TelemetryGuard {
     global::set_tracer_provider(tracer_provider.clone());
     global::set_meter_provider(meter_provider.clone());
 
-    let tracer = tracer_provider.tracer("api-lambda");
+    let tracer = tracer_provider.tracer("{{project-name}}");
 
     tracing_subscriber::registry()
         .with(tracing_opentelemetry::layer().with_tracer(tracer))

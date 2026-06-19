@@ -5,7 +5,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn health_returns_200() {
-    let app = api_lambda::create_router();
+    let app = {{crate_name}}::create_router();
 
     let response = app
         .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
@@ -17,7 +17,7 @@ async fn health_returns_200() {
 
 #[tokio::test]
 async fn health_returns_json_body() {
-    let app = api_lambda::create_router();
+    let app = {{crate_name}}::create_router();
 
     let response = app
         .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
@@ -32,7 +32,7 @@ async fn health_returns_json_body() {
 
 #[tokio::test]
 async fn unknown_route_returns_404() {
-    let app = api_lambda::create_router();
+    let app = {{crate_name}}::create_router();
 
     let response = app
         .oneshot(

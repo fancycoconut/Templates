@@ -1,34 +1,31 @@
-# api-lambda
+# AWS API Lambda Template
 
 Rust AWS Lambda REST API template using axum + lambda_http with OpenTelemetry observability.
 
 ## Using This Template
 
-### 1. Copy the template
+### 1. Install cargo-generate
 
 ```bash
-# Clone the templates repo (if you haven't already)
-git clone https://github.com/<your-org>/Templates.git
-
-# Copy the template into a new project
-cp -r Templates/rust/api-lambda ~/source/repos/my-new-api
-cd ~/source/repos/my-new-api
+cargo install cargo-generate
 ```
 
-### 2. Rename the project
-
-Update the following with your project name (e.g. `orders-api`):
-
-- **`Cargo.toml`** — change `name` and `[lib] name`
-- **`serverless.yml`** — change `service`
-- **`template.yaml`** — change `Description` and `OTEL_SERVICE_NAME`
-- **`src/telemetry.rs`** — change the fallback service name in `unwrap_or_else`
-- **`src/routes/health.rs`** — change the meter name in `global::meter(...)`
-
-### 3. Initialise git and verify
+### 2. Generate a new project
 
 ```bash
-git init
+# From a git repo
+cargo generate --git https://github.com/<your-org>/Templates --path rust/api-lambda
+
+# Or from a local clone
+cargo generate --path /path/to/Templates/rust/api-lambda
+```
+
+You'll be prompted for a project name (e.g. `orders-api`). All files are automatically configured with your project name.
+
+### 3. Verify
+
+```bash
+cd orders-api
 cargo test
 cargo lambda watch  # confirm it runs locally
 ```
