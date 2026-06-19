@@ -140,6 +140,41 @@ Required GitHub Actions secrets for CI/CD:
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 
+## Authentication (OIDC)
+
+If you enabled OIDC during project generation, the API Gateway is configured with a JWT authorizer. All requests must include a valid Bearer token in the `Authorization` header.
+
+```bash
+curl -H "Authorization: Bearer <token>" https://<api-id>.execute-api.<region>.amazonaws.com/health
+```
+
+The authorizer validates tokens against your OIDC provider's issuer URL and audience. To change these after generation, edit the `JwtConfiguration` in `template.yaml`.
+
+### Supported providers
+
+| Provider | Issuer URL |
+|----------|------------|
+| Entra ID (Azure AD) | `https://login.microsoftonline.com/{tenant-id}/v2.0` |
+| Auth0 | `https://{your-domain}.auth0.com/` |
+| Cognito | `https://cognito-idp.{region}.amazonaws.com/{user-pool-id}` |
+| Okta | `https://{your-domain}.okta.com/oauth2/default` |
+| Google | `https://accounts.google.com` |
+
+### Excluding routes from auth
+
+To make specific routes public (e.g. health check), set `Auth: NONE` on the event in `template.yaml`:
+
+```yaml
+Events:
+  HealthPath:
+    Type: HttpApi
+    Properties:
+      Path: /health
+      Method: GET
+      Auth:
+        Authorizer: NONE
+```
+
 ## Adding New Routes
 
 1. Create a handler in `src/routes/` (e.g. `src/routes/items.rs`)
