@@ -52,7 +52,7 @@ Push to `main` to trigger the deploy workflow.
 src/
 ├── main.rs          # Lambda entrypoint — initialises telemetry, runs the router
 ├── lib.rs           # Library root — re-exports create_router for tests
-├── router.rs        # Axum Router definition
+├── router.rs        # Axum Router definition with request logging middleware
 ├── telemetry.rs     # OpenTelemetry tracer + meter provider setup (OTLP)
 └── routes/
     ├── mod.rs
@@ -100,18 +100,26 @@ Tests use `tower::ServiceExt::oneshot` to send HTTP requests directly to the axu
 
 ## Observability
 
-Telemetry is configured via standard OpenTelemetry environment variables:
+### Logging
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OTEL_SERVICE_NAME` | Service name in traces/metrics | `api-lambda` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint (gRPC) | — |
-| `OTEL_RESOURCE_ATTRIBUTES` | Additional resource attributes | — |
-| `RUST_LOG` | Log level filter | `info` |
+All log output is structured JSON written to stdout via `tracing-subscriber`. Lambda automatically captures stdout and forwards it to **CloudWatch Logs** — no extra configuration needed. A log group is created at `/aws/lambda/<function-name>`.
 
-Works with any OTEL-compatible backend: Honeycomb, Grafana Tempo, Jaeger, AWS X-Ray (via ADOT collector), Datadog, etc.
+Request/response logging is handled by `tower-http`'s `TraceLayer`, which logs every incoming request (method, URI) and outgoing response (status code, latency) at the `DEBUG` level.
 
-### Adding tracing to a handler
+#### Log level control
+
+Set the `RUST_LOG` environment variable on your Lambda function to control verbosity:
+
+```yaml
+# template.yaml
+Environment:
+  Variables:
+    RUST_LOG: info                                   # default — application logs only
+    RUST_LOG: debug                                  # includes request/response logs from TraceLayer
+    RUST_LOG: my_crate=debug,tower_http=trace        # fine-grained per-crate control
+```
+
+#### Adding logging to a handler
 
 ```rust
 #[tracing::instrument]
@@ -121,7 +129,24 @@ pub async fn my_handler() -> impl IntoResponse {
 }
 ```
 
-The `#[instrument]` macro creates a span that is automatically exported to your OTEL backend.
+The `#[instrument]` macro creates a span around the handler. Use `tracing::info!`, `tracing::warn!`, `tracing::error!`, etc. inside for structured log events.
+
+### OpenTelemetry (traces & metrics)
+
+Traces and metrics are exported via OTLP gRPC to a collector. For this to work in Lambda, add the [AWS Distro for OpenTelemetry (ADOT) Lambda layer](https://aws-otel.github.io/), which runs a collector as a Lambda extension.
+
+Without the ADOT layer, the OTLP exporters will fail to connect — but structured JSON logging to CloudWatch still works fine.
+
+Configuration uses standard OpenTelemetry environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OTEL_SERVICE_NAME` | Service name in traces/metrics | `<project-name>` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint (gRPC) | — |
+| `OTEL_RESOURCE_ATTRIBUTES` | Additional resource attributes | — |
+| `RUST_LOG` | Log level filter | `info` |
+
+Works with any OTEL-compatible backend: Honeycomb, Grafana Tempo, Jaeger, AWS X-Ray (via ADOT collector), Datadog, etc.
 
 ## Deployment
 
