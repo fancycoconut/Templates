@@ -7,7 +7,7 @@ use opentelemetry_sdk::{
     trace::TracerProvider,
     Resource,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 pub struct TelemetryGuard {
     tracer_provider: TracerProvider,
@@ -39,7 +39,10 @@ pub fn init() -> TelemetryGuard {
 
     let tracer = tracer_provider.tracer("{{project-name}}");
 
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
     tracing_subscriber::registry()
+        .with(env_filter)
         .with(tracing_opentelemetry::layer().with_tracer(tracer))
         .with(tracing_subscriber::fmt::layer().json())
         .init();
