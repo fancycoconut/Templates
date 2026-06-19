@@ -14,6 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - uses: aws-actions/setup-sam@v2
 
       - name: Install cargo-lambda
         run: pip3 install cargo-lambda
@@ -21,11 +22,8 @@ jobs:
       - name: Build
         run: cargo lambda build --release --arm64
 
-      - name: Install Serverless Framework
-        run: npm install -g serverless
-
       - name: Deploy
-        run: serverless deploy --stage ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
