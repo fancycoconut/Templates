@@ -1,4 +1,4 @@
-use api_lambda::{create_router, telemetry};
+use {{crate_name}}::{create_router, telemetry};
 
 #[tokio::main]
 async fn main() -> Result<(), lambda_http::Error> {

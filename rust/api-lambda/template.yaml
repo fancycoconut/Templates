@@ -12,7 +12,7 @@ Globals:
     Environment:
       Variables:
         RUST_LOG: info
-        OTEL_SERVICE_NAME: api-lambda
+        OTEL_SERVICE_NAME: {{project-name}}
         OTEL_EXPORTER_OTLP_ENDPOINT: ""
 
 Resources:

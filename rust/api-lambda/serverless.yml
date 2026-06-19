@@ -1,4 +1,4 @@
-service: api-lambda
+service: {{project-name}}
 frameworkVersion: "3"
 
 provider:
