@@ -1,0 +1,3 @@
+.github/workflows/verify-template.yml
+.genignore
+cargo-generate.toml

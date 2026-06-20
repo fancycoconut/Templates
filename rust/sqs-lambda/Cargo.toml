@@ -1,0 +1,33 @@
+[package]
+name = "{{project-name}}"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "{{crate_name}}"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bootstrap"
+path = "src/main.rs"
+
+[dependencies]
+aws_lambda_events = "0.15"
+lambda_runtime = "0.13"
+tokio = { version = "1", features = ["macros"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+config = "0.15"
+
+# Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "registry"] }
+tracing-opentelemetry = "0.28"
+
+# OpenTelemetry
+opentelemetry = "0.27"
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic"] }
+
+[dev-dependencies]
+serde_json = "1"

@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Rust Lambda SQS Consumer
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: provided.al2023
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        OTEL_SERVICE_NAME: {{project-name}}
+        OTEL_EXPORTER_OTLP_ENDPOINT: ""
+
+Resources:
+  Queue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-queue"
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-dlq"
+      MessageRetentionPeriod: 1209600
+
+  ConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: target/lambda/bootstrap/
+      Handler: bootstrap
+      Events:
+        SqsTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt Queue.Arn
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+
+Outputs:
+  QueueUrl:
+    Description: SQS queue URL
+    Value: !Ref Queue
+  QueueArn:
+    Description: SQS queue ARN
+    Value: !GetAtt Queue.Arn
+  DeadLetterQueueUrl:
+    Description: Dead-letter queue URL
+    Value: !Ref DeadLetterQueue
