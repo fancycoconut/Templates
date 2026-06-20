@@ -3,6 +3,10 @@ name: Verify Rust AWS Lambda API Template
 on:
   pull_request:
     branches: [main, master]
+    paths:
+      - 'rust/api-lambda/**'
+  # Enables manual trigger from GitHub UI for ad-hoc deployments
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
