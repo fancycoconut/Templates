@@ -1,0 +1,52 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, master]
+  # Enables manual trigger from GitHub UI for ad-hoc deployments
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # id-token: write lets this job mint a short-lived OIDC token that AWS
+    # trusts in exchange for temporary credentials — no long-lived AWS
+    # access key/secret stored in GitHub at all. See
+    # backend/lambdas/terraform/github-oidc/ for the one-time AWS-side role
+    # that trusts this.
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: aws-actions/setup-sam@v2
+
+      - name: Install cargo-lambda
+        uses: cargo-lambda/setup-cargo-lambda@v2
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: sam build
+        run: sam build
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: sam deploy
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              Stage=test
