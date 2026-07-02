@@ -21,7 +21,7 @@ provider "aws" {
   allowed_account_ids = ["897729106526"]
 }
 
-module "babytrackerchip_github_repo_oidc" {
+module "somerepo_github_repo_oidc" {
   source               = "../../modules/github-repo-oidc"
   aws_region           = var.region
   github_org           = "fancycoconut"
