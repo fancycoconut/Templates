@@ -12,6 +12,16 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    # id-token: write lets this job mint a short-lived OIDC token that AWS
+    # trusts in exchange for temporary credentials — no long-lived AWS
+    # access key/secret stored in GitHub at all. See
+    # backend/lambdas/terraform/github-oidc/ for the one-time AWS-side role
+    # that trusts this.
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
