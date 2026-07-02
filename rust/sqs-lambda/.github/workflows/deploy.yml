@@ -3,6 +3,8 @@ name: Deploy
 on:
   push:
     branches: [main, master]
+  # Enables manual trigger from GitHub UI for ad-hoc deployments
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
