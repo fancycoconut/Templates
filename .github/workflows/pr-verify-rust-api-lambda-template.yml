@@ -29,7 +29,7 @@ jobs:
 
       - name: Generate project
         run: >
-          cargo generate --path .
+          cargo generate --path rust/api-lambda
           --name test-project
           --define "enable_oidc=${{ matrix.enable_oidc }}"
           --define "oidc_issuer_url=https://example.com"
