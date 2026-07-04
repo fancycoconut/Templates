@@ -53,5 +53,6 @@ jobs:
           sam deploy \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
+            --s3-bucket your-lambda-deployment-s3-bucket \
             --parameter-overrides \
               Stage=test
