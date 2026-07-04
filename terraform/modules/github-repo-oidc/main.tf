@@ -82,11 +82,27 @@ data "aws_iam_policy_document" "sam_deploy" {
       "cloudformation:ListStackResources",
       "cloudformation:CreateStack",
       "cloudformation:UpdateStack",
+      "cloudformation:DeleteStack",
       "cloudformation:ValidateTemplate",
     ]
     resources = [
       "arn:aws:cloudformation:*:${data.aws_caller_identity.current.account_id}:stack/baby-tracker/*",
       "arn:aws:cloudformation:*:${data.aws_caller_identity.current.account_id}:stack/aws-sam-cli-managed-default/*",
+    ]
+  }
+
+  # SAM templates carry `Transform: AWS::Serverless-2016-10-31`. CloudFormation
+  # checks CreateChangeSet/ExecuteChangeSet against this pseudo-resource ARN
+  # (separate from the stack ARN) whenever a template uses that transform.
+  statement {
+    sid    = "ServerlessTransform"
+    effect = "Allow"
+    actions = [
+      "cloudformation:CreateChangeSet",
+      "cloudformation:ExecuteChangeSet",
+    ]
+    resources = [
+      "arn:aws:cloudformation:${var.aws_region}:aws:transform/Serverless-2016-10-31",
     ]
   }
 
@@ -103,10 +119,30 @@ data "aws_iam_policy_document" "sam_deploy" {
       "s3:GetObject",
       "s3:PutObject",
       "s3:ListBucket",
+      "s3:TagResource",
     ]
     resources = [
       "arn:aws:s3:::aws-sam-cli-managed-default-*",
       "arn:aws:s3:::aws-sam-cli-managed-default-*/*",
+    ]
+  }
+
+  # The bucket `sam deploy --s3-bucket` actually uploads artifacts to
+  # (backend/lambdas' GitHub Actions workflow passes this explicitly rather
+  # than letting SAM manage its own bucket). Distinct from the
+  # aws-sam-cli-managed-default-* bucket covered above.
+  statement {
+    sid    = "LambdaDeploymentBucket"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:GetBucketLocation",
+      "s3:ListBucket",
+    ]
+    resources = [
+      var.lambda_deployment_bucket_arn,
+      "${var.lambda_deployment_bucket_arn}/*",
     ]
   }
 
@@ -129,7 +165,7 @@ data "aws_iam_policy_document" "sam_deploy" {
       "lambda:UntagResource",
     ]
     resources = [
-      "arn:aws:lambda:*:${data.aws_caller_identity.current.account_id}:function:dev-*",
+      "arn:aws:lambda:*:${data.aws_caller_identity.current.account_id}:function:${var.environment}-*",
     ]
   }
 
@@ -142,10 +178,19 @@ data "aws_iam_policy_document" "sam_deploy" {
       "apigateway:PUT",
       "apigateway:PATCH",
       "apigateway:DELETE",
+      # ApiGatewayV2 authorizes tagging of resources like stages via named
+      # actions rather than the HTTP-method-style actions above.
+      "apigateway:TagResource",
+      "apigateway:UntagResource",
     ]
     resources = [
       "arn:aws:apigateway:${var.aws_region}::/apis",
       "arn:aws:apigateway:${var.aws_region}::/apis/*",
+      # CloudFormation tags the HttpApi after creating it. Tagging is a
+      # distinct IAM resource (the /tags/ path) from the API resource itself.
+      # The nested resource ARN in a /tags/ path is percent-encoded on the
+      # wire, so matching it exactly is impractical — wildcard the whole path.
+      "arn:aws:apigateway:${var.aws_region}::/tags/*",
     ]
   }
 
@@ -180,7 +225,7 @@ data "aws_iam_policy_document" "sam_deploy" {
       "logs:TagResource",
     ]
     resources = [
-      "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/dev-*",
+      "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.environment}-*",
     ]
   }
 }
