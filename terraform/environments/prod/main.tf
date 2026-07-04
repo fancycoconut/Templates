@@ -22,10 +22,18 @@ provider "aws" {
 }
 
 module "somerepo_github_repo_oidc" {
-  source               = "../../modules/github-repo-oidc"
-  aws_region           = var.region
-  github_org           = "fancycoconut"
-  github_repo          = "<repo-name-goes-here>"
-  github_environment   = "<github-env-name-goes-here>"
-  create_oidc_provider = true
+  source                       = "../../modules/github-repo-oidc"
+  aws_region                   = var.region
+  environment                  = var.environment
+  github_org                   = "fancycoconut"
+  github_repo                  = "<repo-name-goes-here>"
+  github_environment           = "<github-env-name-goes-here>"
+  create_oidc_provider         = true
+  lambda_deployment_bucket_arn = module.s3_buckets.lambda_deployments_bucket_arn
 }
+
+module "s3_buckets" {
+  source        = "../../modules/s3"
+  environment = var.environment
+}
+
