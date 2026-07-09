@@ -18,19 +18,32 @@ tokio = { version = "1", features = ["macros"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tower-http = { version = "0.6", features = ["trace"] }
-config = "0.15"
+config = { version = "0.15", default-features = false, features = ["toml"] }
 
 # Tracing
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "registry"] }
-tracing-opentelemetry = "0.28"
+tracing-opentelemetry = { version = "0.28", optional = true }
 
-# OpenTelemetry
+# opentelemetry is the lightweight API crate (routes/health.rs calls
+# global::meter() directly, which no-ops until a provider is set) and stays
+# a regular dependency. The SDK/exporter/bridge crates below are gated
+# behind `otlp` since they pull in the tonic/prost gRPC stack, a major chunk
+# of compile time, for a runtime-opt-in exporter that's disabled by default
+# (see telemetry.rs).
 opentelemetry = "0.27"
-opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic"] }
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"], optional = true }
+opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic"], optional = true }
+
+[features]
+otlp = ["dep:tracing-opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
 
 [dev-dependencies]
 http = "1"
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
+
+# CI builds on a native arm64 runner (matches Architectures: [arm64] in
+# template.yaml), so skip Zig cross-compilation and use the native linker.
+[package.metadata.lambda.build.compiler]
+type = "cargo"

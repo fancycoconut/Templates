@@ -14,12 +14,8 @@ pub struct LoggingSettings {
 impl Settings {
     pub fn load() -> Result<Self, config::ConfigError> {
         Config::builder()
-            .add_source(config::File::with_name("config"))
-            .add_source(
-                config::Environment::default()
-                    .separator("__")
-                    .prefix("APP"),
-            )
+            .add_source(config::File::with_name("config").format(config::FileFormat::Toml))
+            .add_source(config::Environment::default().separator("__").prefix("APP"))
             .build()?
             .try_deserialize()
     }
