@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy (Access Key)
 
 on:
   push:
@@ -6,26 +6,113 @@ on:
   # Enables manual trigger from GitHub UI for ad-hoc deployments
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
+  CARGO_TERM_PROGRESS_WHEN: never
+  CARGO_LAMBDA_VERSION: 1.9.1
 
 jobs:
-  deploy:
+  check:
+    name: Check and Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
       - uses: Swatinem/rust-cache@v2
-      - uses: aws-actions/setup-sam@v2
+
+      - name: Check
+        run: cargo check
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Test
+        run: cargo test
+
+  build:
+    name: Build Lambda
+    # No dependency on `check` — this compile is independent of lint/test
+    # and runs on a different runner/architecture anyway, so it overlaps
+    # with `check` instead of waiting behind it. `deploy` still gates on
+    # both before shipping anything.
+    # Native arm64 runner matches the Lambda Architectures (arm64) in
+    # template.yaml, so cargo-lambda builds natively instead of
+    # cross-compiling through Zig.
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Stable across job renames — rust-cache keys on github.job by
+          # default, so renaming this job would reset the cache.
+          shared-key: lambda-arm64-release
+
+      - name: Install lld
+        run: sudo apt-get update && sudo apt-get install -y lld
+
+      - name: Cache cargo-lambda
+        id: cargo-lambda-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-lambda
+          key: cargo-lambda-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_LAMBDA_VERSION }}
 
       - name: Install cargo-lambda
-        run: pip3 install cargo-lambda
+        if: steps.cargo-lambda-cache.outputs.cache-hit != 'true'
+        run: curl -fsSL https://cargo-lambda.info/install.sh | sh
 
-      - name: Build
-        run: cargo lambda build --release --arm64
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v3
 
-      - name: Deploy
-        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
+      - name: sam build
+        run: sam build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: sam-build
+          path: .aws-sam/build
+          retention-days: 1
+
+  deploy:
+    name: Deploy to AWS
+    needs: [check, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: sam-build
+          path: .aws-sam/build
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v3
+
+      - name: sam deploy
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --s3-bucket your-lambda-deployment-s3-bucket
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
