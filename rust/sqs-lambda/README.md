@@ -31,9 +31,15 @@ cargo test
 
 ### 4. Set up CI/CD
 
-Add these secrets to your GitHub repository (Settings > Secrets > Actions):
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+`.github/workflows/` ships two alternative deploy pipelines — each is self-contained (check, build, deploy). **Delete whichever one you're not using**, otherwise every push runs both and attempts two deployments.
+
+- **`deploy-using-iam-role.yml`** (recommended) — authenticates to AWS via GitHub OIDC, no long-lived credentials stored in GitHub. Requires:
+  - An AWS IAM role trusting GitHub's OIDC provider, exposed as secret `AWS_DEPLOY_ROLE_ARN`
+  - Repository variable `AWS_REGION`
+  - Update the `--s3-bucket` placeholder in the workflow's `sam deploy` step to your deployment bucket
+- **`deploy.yml`** — authenticates with a static AWS access key. Requires secrets `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, plus repository variable `AWS_REGION`.
+
+Both jobs build once on a native `ubuntu-24.04-arm` runner (matching the Lambda's `arm64` architecture) and pass the SAM build artifact to `deploy`, so the binary that's tested is the one that's shipped.
 
 Push to `main` to trigger the deploy workflow.
 
@@ -127,9 +133,15 @@ Precedence order: `RUST_LOG` > `APP__*` env vars > `config.toml`.
 
 ### OpenTelemetry (traces & metrics)
 
-Traces and metrics are exported via OTLP gRPC to a collector. For Lambda, add the [AWS Distro for OpenTelemetry (ADOT) Lambda layer](https://aws-otel.github.io/).
+OTLP export is gated behind the `otlp` Cargo feature — it's off by default so `cargo check`/`cargo test`/CI don't pay to compile the tonic/prost gRPC stack. Build with it enabled when you want traces and metrics:
 
-Without the ADOT layer, the OTLP exporters will fail to connect — but structured JSON logging to CloudWatch still works fine.
+```bash
+cargo lambda build --release --arm64 --features otlp
+```
+
+Without the `otlp` feature (or without `OTEL_EXPORTER_OTLP_ENDPOINT` set at runtime), the binary skips OTLP setup entirely and only does structured JSON logging to CloudWatch — no failed connection attempts, no extra deploy artifact size.
+
+With the feature enabled, traces and metrics are exported via OTLP gRPC to a collector. For Lambda, add the [AWS Distro for OpenTelemetry (ADOT) Lambda layer](https://aws-otel.github.io/).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -141,7 +153,7 @@ Without the ADOT layer, the OTLP exporters will fail to connect — but structur
 ## Deployment
 
 ```bash
-# Build for Lambda
+# Build for Lambda (add --features otlp to enable OTLP tracing/metrics)
 cargo lambda build --release --arm64
 
 # First deploy (interactive — sets up samconfig.toml)
@@ -150,6 +162,8 @@ sam deploy --guided
 # Subsequent deploys
 sam deploy
 ```
+
+See [Set up CI/CD](#4-set-up-cicd) for the GitHub Actions secrets/variables each deploy workflow needs.
 
 ## Infrastructure
 
