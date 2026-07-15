@@ -56,17 +56,23 @@ Push to `main` to trigger the deploy workflow.
 
 ```
 config.toml              # Application configuration (log level, etc.)
+macros/                  # Proc-macro crate providing #[route(METHOD, "path")]
+├── Cargo.toml
+└── src/lib.rs
 src/
 ├── main.rs              # Lambda entrypoint — loads config, initialises telemetry, runs the router
 ├── lib.rs               # Library root — re-exports create_router for tests
-├── router.rs            # Axum Router definition with request logging middleware
+├── router.rs            # Folds every #[route(...)]-registered handler into the Axum Router
+├── routing.rs           # RouteEntry + inventory collection point for #[route(...)]
 ├── settings.rs          # Configuration loading (config.toml + env var overrides)
 ├── telemetry.rs         # OpenTelemetry tracer + meter provider setup (OTLP)
 └── routes/
     ├── mod.rs
     └── health.rs        # GET /health — example handler with tracing + metrics
 tests/
-└── api_test.rs          # Integration tests using tower::ServiceExt::oneshot
+├── api_test.rs                    # Integration tests using tower::ServiceExt::oneshot
+├── api_endpoints_tests.rs         # Snapshot test asserting registered routes match api-endpoints.verified.text
+└── api-endpoints.verified.text    # Snapshot of every route registered via #[route(...)]
 ```
 
 ## Local Development
@@ -227,10 +233,17 @@ Events:
 
 1. Create a handler in `src/routes/` (e.g. `src/routes/items.rs`)
 2. Add `pub mod items;` to `src/routes/mod.rs`
-3. Register the route in `src/router.rs`:
+3. Annotate the handler with `#[route(METHOD, "path")]` — this registers it via
+   `inventory` so `router.rs` picks it up automatically, no manual wiring needed:
    ```rust
-   Router::new()
-       .route("/health", get(routes::health::handler))
-       .route("/items", get(routes::items::list))
+   use {{crate_name}}_macros::route;
+
+   #[route(GET, "/items")]
+   #[tracing::instrument]
+   pub async fn list() -> impl IntoResponse {
+       // ...
+   }
    ```
-4. Add `#[tracing::instrument]` to the handler for automatic tracing
+4. Run `cargo test` — `tests/api_endpoints_tests.rs` snapshot-tests the registered
+   route surface against `tests/api-endpoints.verified.text`. If the new route is
+   intentional, update that file to match.
