@@ -1,6 +1,9 @@
 use axum::Json;
 use opentelemetry::{global, KeyValue};
 
+use {{crate_name}}_macros::route;
+
+#[route(GET, "/health")]
 #[tracing::instrument]
 pub async fn handler() -> Json<serde_json::Value> {
     tracing::info!("Health check requested");

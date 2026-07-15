@@ -1,10 +1,12 @@
-use axum::{routing::get, Router};
+use axum::Router;
 use tower_http::trace::TraceLayer;
 
-use crate::routes;
+use crate::routing::RouteEntry;
 
 pub fn create_router() -> Router {
-    Router::new()
-        .route("/health", get(routes::health::handler))
-        .layer(TraceLayer::new_for_http())
+    let mut router = Router::new();
+    for entry in inventory::iter::<RouteEntry> {
+        router = (entry.register)(router);
+    }
+    router.layer(TraceLayer::new_for_http())
 }
